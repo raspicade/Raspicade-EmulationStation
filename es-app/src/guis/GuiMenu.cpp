@@ -10,6 +10,8 @@
 #include "guis/GuiDetectDevice.h"
 #include "views/ViewController.h"
 
+#include "AudioManager.h"
+
 #include "components/ButtonComponent.h"
 #include "components/SwitchComponent.h"
 #include "components/SliderComponent.h"
@@ -42,6 +44,68 @@ GuiMenu::GuiMenu(Window* window) : GuiComponent(window), mMenu(window, "MAIN MEN
 	// QUIT >
 
 	// [version]
+
+
+        addEntry("VIEW IP ADDRESS", 0x777777FF, true,
+                [this] {
+                        auto s = new GuiSettings(mWindow, "IP ADDRESS");
+                         Window* window = mWindow;
+
+                        ComponentListRow row;
+
+                        //get ip
+                        struct ifaddrs *ifaddr, *ifa;
+                        int family, st, n, n_ip;
+                        char host[NI_MAXHOST]="";
+                        char tabhost[10][NI_MAXHOST]={"","","","","","","","","",""};
+
+                        if (getifaddrs(&ifaddr) == -1) {
+                                LOG(LogError) << "getifaddrs error\n";
+                           }
+
+                          /* Walk through linked list, maintaining head pointer so we
+                              can free list later */
+                        n_ip=0;
+                           for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++)
+                              {
+                               if (ifa->ifa_addr == NULL)
+                                   continue;
+
+                               family = ifa->ifa_addr->sa_family;
+
+                               /* For an AF_INET* interface address, display the address */
+
+                               if (family == AF_INET || family == AF_INET6)
+                                   {
+                                   st = getnameinfo(ifa->ifa_addr,
+                                           (family == AF_INET) ? sizeof(struct sockaddr_in) :
+                                                                 sizeof(struct sockaddr_in6),
+                                           host, NI_MAXHOST,
+                                           NULL, 0, NI_NUMERICHOST);
+                                   if (st != 0)
+                                       {
+                                       LOG(LogError) << "getnameinfo() failed: \n";
+                                       }
+
+                                  }
+                                if (strcmp(host,"")!=0)
+                                        {
+                                        //printf("%s\n", host);
+                                        strncpy(tabhost[n_ip],host, NI_MAXHOST);
+                                        //printf("%s\n", tabhost[n_ip]);
+                                        row.addElement(std::make_shared<TextComponent>(window, tabhost[n_ip], Font::get(FONT_SIZE_MEDIUM), 0x777777FF), true);
+                                        //printf("%s\n", tabhost[n_ip]);
+                                        s->addRow(row);
+                                        row.elements.clear();
+
+                                        n_ip++;
+                                        }
+                           }
+                           freeifaddrs(ifaddr);
+                        mWindow->pushGui(s);
+
+                        });
+
 
 	auto openScrapeNow = [this] { mWindow->pushGui(new GuiScraperStart(mWindow)); };
 	addEntry("SCRAPER", 0x777777FF, true, 
@@ -92,7 +156,11 @@ GuiMenu::GuiMenu(Window* window) : GuiComponent(window), mMenu(window, "MAIN MEN
 			auto sounds_enabled = std::make_shared<SwitchComponent>(mWindow);
 			sounds_enabled->setState(Settings::getInstance()->getBool("EnableSounds"));
 			s->addWithLabel("ENABLE SOUNDS", sounds_enabled);
-			s->addSaveFunc([sounds_enabled] { Settings::getInstance()->setBool("EnableSounds", sounds_enabled->getState()); });
+			s->addSaveFunc([sounds_enabled] { 
+                            Settings::getInstance()->setBool("EnableSounds", sounds_enabled->getState()); 
+                            if(!sounds_enabled->getState())
+                                AudioManager::getInstance()->stopMusic();
+                        });
 
 			mWindow->pushGui(s);
 	});
@@ -179,93 +247,6 @@ GuiMenu::GuiMenu(Window* window) : GuiComponent(window), mMenu(window, "MAIN MEN
 	addEntry("CONFIGURE INPUT", 0x777777FF, true, 
 		[this] { 
 			mWindow->pushGui(new GuiDetectDevice(mWindow, false, nullptr));
-	});
-	addEntry("GET IP ADDRESS", 0x777777FF, true, 
-		[this] { 
-			auto s = new GuiSettings(mWindow, "IP ADDRESS");
-			 Window* window = mWindow;
-
-                        ComponentListRow row;
-/*                        row.makeAcceptInputHandler([window]{
-			window->pushGui(new GuiMsgBox(window, "REALLY RESTART?", "YES",
-                                [] {
-                                        if(runRestartCommand() != 0)
-                                                LOG(LogWarning) << "Restart terminated with non-zero result!";
-                                }, "NO", nullptr));
-			 });
-*/
-
-
-//get ip
-struct ifaddrs *ifaddr, *ifa;
-int family, st, n, n_ip;
-char host[NI_MAXHOST]="";
-char tabhost[10][NI_MAXHOST]={"","","","","","","","","",""};
-
-           if (getifaddrs(&ifaddr) == -1) {
-                LOG(LogError) << "getifaddrs error\n";
-           }
-
-          /* Walk through linked list, maintaining head pointer so we
-              can free list later */
-	n_ip=0;
-           for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) 
-	      {
-               if (ifa->ifa_addr == NULL)
-                   continue;
-
-               family = ifa->ifa_addr->sa_family;
-
-               /* For an AF_INET* interface address, display the address */
-
-               if (family == AF_INET || family == AF_INET6) 
-		   {
-                   st = getnameinfo(ifa->ifa_addr,
-                           (family == AF_INET) ? sizeof(struct sockaddr_in) :
-                                                 sizeof(struct sockaddr_in6),
-                           host, NI_MAXHOST,
-                           NULL, 0, NI_NUMERICHOST);
-                   if (st != 0) 
-		       {
-                       LOG(LogError) << "getnameinfo() failed: \n";
-                       }
-
-/*
-               } else if (family == AF_PACKET && ifa->ifa_data != NULL) {
-                   struct rtnl_link_stats *stats = ifa->ifa_data;
-
-                   printf("\t\ttx_packets = %10u; rx_packets = %10u\n"
-                          "\t\ttx_bytes   = %10u; rx_bytes   = %10u\n",
-                          stats->tx_packets, stats->rx_packets,
-                          stats->tx_bytes, stats->rx_bytes);
-*/
-                  }
-		if (strcmp(host,"")!=0)
-			{
-	        	//printf("%s\n", host);
-			strncpy(tabhost[n_ip],host, NI_MAXHOST);
-		        //printf("%s\n", tabhost[n_ip]);
-		        row.addElement(std::make_shared<TextComponent>(window, tabhost[n_ip], Font::get(FONT_SIZE_MEDIUM), 0x777777FF), true);
-		        //printf("%s\n", tabhost[n_ip]);
-		        s->addRow(row);
-			row.elements.clear();
-			
-			n_ip++;
-			}
-           }
-
-           freeifaddrs(ifaddr);
-/*
-        printf("%s\n", host);
-
-	row.addElement(std::make_shared<TextComponent>(window, host, Font::get(FONT_SIZE_MEDIUM), 0x777777FF), true);
-        s->addRow(row);
-*/
-	mWindow->pushGui(s);
-
-//			mWindow->pushGui(new GuiGetIpAddress(mWindow, false, nullptr));
-
-
 	});
 
 	addEntry("QUIT", 0x777777FF, true, 
