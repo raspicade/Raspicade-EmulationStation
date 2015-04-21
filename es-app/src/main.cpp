@@ -2,6 +2,7 @@
 //http://www.aloshi.com
 
 #include <SDL.h>
+#include <SDL_mixer.h>
 #include <iostream>
 #include <iomanip>
 #include "Renderer.h"
@@ -11,6 +12,7 @@
 #include "guis/GuiDetectDevice.h"
 #include "guis/GuiMsgBox.h"
 #include "AudioManager.h"
+#include "VolumeControl.h"
 #include "platform.h"
 #include "Log.h"
 #include "Window.h"
@@ -286,9 +288,14 @@ int main(int argc, char* argv[])
 
 	//generate joystick events since we're done loading
 	SDL_JoystickEventState(SDL_ENABLE);
+	
+	// Initialize audio manager
+        VolumeControl::getInstance()->init();
+        AudioManager::getInstance()->init();
 
 	int lastTime = SDL_GetTicks();
 	bool running = true;
+
 
 	while(running)
 	{
