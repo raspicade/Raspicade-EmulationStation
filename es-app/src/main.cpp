@@ -17,8 +17,12 @@
 #include "EmulationStation.h"
 #include "Settings.h"
 #include "ScraperCmdLine.h"
+#include "VolumeControl.h"
 #include <sstream>
 #include <boost/locale.hpp>
+#include "resources/Font.h"
+
+
 
 #ifdef WIN32
 #include <Windows.h>
@@ -139,10 +143,7 @@ bool loadSystemConfigFile(const char** errorString)
 	if(SystemData::sSystemVector.size() == 0)
 	{
 		LOG(LogError) << "No systems found! Does at least one system have a game present? (check that extensions match!)\n(Also, make sure you've updated your es_systems.cfg for XML!)";
-		*errorString = "WE CAN'T FIND ANY SYSTEMS!\n"
-			"CHECK THAT YOUR PATHS ARE CORRECT IN THE SYSTEMS CONFIGURATION FILE, "
-			"AND YOUR GAME DIRECTORY HAS AT LEAST ONE GAME WITH THE CORRECT EXTENSION.\n\n"
-			"VISIT EMULATIONSTATION.ORG FOR MORE INFORMATION.";
+		*errorString = "NOGAMEERRORMESSAGE";
 		return false;
 	}
 
@@ -155,13 +156,53 @@ void onExit()
 	Log::close();
 }
 
+int setLocale(char * argv1)
+{
+ 	char path_save[PATH_MAX];
+  	char abs_exe_path[PATH_MAX];
+  	char *p;
+
+  	if(!(p = strrchr(argv1, '/')))
+    		getcwd(abs_exe_path, sizeof(abs_exe_path));
+  	else
+  	{
+    		*p = '\0';
+    		getcwd(path_save, sizeof(path_save));
+    		chdir(argv1);
+    		getcwd(abs_exe_path, sizeof(abs_exe_path));
+    		chdir(path_save);
+  	}
+	boost::locale::localization_backend_manager my = boost::locale::localization_backend_manager::global(); 
+	// Get global backend
+
+    	my.select("std"); 
+	boost::locale::localization_backend_manager::global(my);
+    	// set this backend globally
+
+    	boost::locale::generator gen;
+
+	std::string localeDir = abs_exe_path;
+	localeDir += "/locale/";
+	LOG(LogInfo) << "Setting local directory to " << localeDir;
+    	// Specify location of dictionaries
+    	gen.add_messages_path(localeDir);
+    	gen.add_messages_path("/usr/share/locale");
+    	gen.add_messages_domain("emulationstation2");
+
+    	// Generate locales and imbue them to iostream
+    	std::locale::global(gen(""));
+    	std::cout.imbue(std::locale());
+        LOG(LogInfo) << "Locals set...";
+
+}
+
 int main(int argc, char* argv[])
 {
 	unsigned int width = 0;
 	unsigned int height = 0;
 
-	std::locale::global(boost::locale::generator().generate(""));
-	boost::filesystem::path::imbue(std::locale());
+	//std::locale::global(boost::locale::generator().generate(""));
+	//boost::filesystem::path::imbue(std::locale());
 
 	if(!parseArgs(argc, argv, &width, &height))
 		return 0;
@@ -210,6 +251,9 @@ int main(int argc, char* argv[])
 	//always close the log on exit
 	atexit(&onExit);
 
+	// Set locale
+	setLocale(argv[0]);
+
 	Window window;
 	ViewController::init(&window);
 	window.pushGui(ViewController::get());
@@ -250,7 +294,6 @@ int main(int argc, char* argv[])
 				SDL_PushEvent(quit);
 			}));
 	}
-
 	//run the command line scraper then quit
 	if(scrape_cmdline)
 	{
@@ -259,7 +302,11 @@ int main(int argc, char* argv[])
 
 	//dont generate joystick events while we're loading (hopefully fixes "automatically started emulator" bug)
 	SDL_JoystickEventState(SDL_DISABLE);
-
+        
+        // Initialize audio manager
+        VolumeControl::getInstance()->init();
+        AudioManager::getInstance()->init();
+        
 	// preload what we can right away instead of waiting for the user to select it
 	// this makes for no delays when accessing content, but a longer startup time
 	ViewController::get()->preload();

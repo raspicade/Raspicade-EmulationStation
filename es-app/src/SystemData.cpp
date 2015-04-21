@@ -108,10 +108,13 @@ void SystemData::launchGame(Window* window, FileData* game)
 {
 	LOG(LogInfo) << "Attempting to launch game...";
 
+
 	AudioManager::getInstance()->deinit();
 	VolumeControl::getInstance()->deinit();
+        
 	window->deinit();
 
+        
 	std::string command = mLaunchCommand;
 
 	const std::string rom = escapePath(game->getPath());
@@ -134,7 +137,7 @@ void SystemData::launchGame(Window* window, FileData* game)
 
 	window->init();
 	VolumeControl::getInstance()->init();
-	AudioManager::getInstance()->init();
+	AudioManager::getInstance()->resumeMusic();
 	window->normalizeNextUpdate();
 
 	//update number of times the game has been launched
@@ -186,8 +189,8 @@ void SystemData::populateFolder(FileData* folder)
 		//see issue #75: https://github.com/Aloshi/EmulationStation/issues/75
 
 		isGame = false;
-		if(std::find(mSearchExtensions.begin(), mSearchExtensions.end(), extension) != mSearchExtensions.end())
-		{
+		if(std::find(mSearchExtensions.begin(), mSearchExtensions.end(), extension) != mSearchExtensions.end()
+                        && filePath.filename().string().compare(0, 1, ".") != 0 ){
 			FileData* newGame = new FileData(GAME, filePath.generic_string(), this);
 			folder->addChild(newGame);
 			isGame = true;

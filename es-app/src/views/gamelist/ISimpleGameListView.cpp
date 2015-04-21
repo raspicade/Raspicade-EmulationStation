@@ -59,8 +59,9 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 		{
 			FileData* cursor = getCursor();
 			if(cursor->getType() == GAME)
-			{
-				Sound::getFromTheme(getTheme(), getName(), "launch")->play();
+			{	
+				//Music modififation (recalbox)	
+				//Sound::getFromTheme(getTheme(), getName(), "launch")->play();
 				launch(cursor);
 			}else{
 				// it's a folder
@@ -79,7 +80,8 @@ bool ISimpleGameListView::input(InputConfig* config, Input input)
 				populateList(mCursorStack.top()->getParent()->getChildren());
 				setCursor(mCursorStack.top());
 				mCursorStack.pop();
-				Sound::getFromTheme(getTheme(), getName(), "back")->play();
+				//Music modififation (recalbox)
+				//Sound::getFromTheme(getTheme(), getName(), "back")->play();
 			}else{
 				onFocusLost();
 				ViewController::get()->goToSystemView(getCursor()->getSystem());

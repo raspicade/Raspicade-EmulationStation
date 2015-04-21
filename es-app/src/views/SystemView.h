@@ -45,4 +45,6 @@ private:
 	float mCamOffset;
 	float mExtrasCamOffset;
 	float mExtrasFadeOpacity;
+	//Music modification (recalbox)
+	SystemData * lastSystem;
 };
